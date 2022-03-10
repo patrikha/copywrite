@@ -1,0 +1,28 @@
+[package]
+name = "copywrite"
+version = "0.1.5"
+authors = ["patrik.hartlen@se.com"]
+edition = "2018"
+build = "build.rs"
+
+[build-dependencies]
+built = { version = "0.4",  features = ["git2", "chrono"] }
+
+[profile.release]
+opt-level = 'z'  # Optimize for size.
+lto = true  # Link time optimization
+
+[dependencies]
+lazy_static = "1"
+serde = { version = "1", features = ["derive"] }
+log = "0"
+env_logger = "0"
+docopt = "1"
+encoding_rs = "0.8"
+unicode-bom = "1"
+walkdir = "2"
+regex = "1"
+tera = "1"
+chrono = "0"
+git2 = "0"
+os_str_bytes = "4"
