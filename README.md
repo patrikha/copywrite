@@ -56,6 +56,3 @@ Then pull down the dependencies and build the tool:
 ``` bash
 cargo build
 ```
-
-## Prebuilt binaries
-Prebuilt binaries for Windows/Linux/MacOS are available in [Artifactory](https://artifactory.eur.gad.schneider-electric.com/ui/repos/tree/General/Installers%2FTools%2Fcopywrite)
