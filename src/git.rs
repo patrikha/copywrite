@@ -1,17 +1,41 @@
 use git2::{Error, IndexAddOption, Repository};
 use os_str_bytes::OsStrBytes;
 use std::ffi::{OsStr, OsString};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-pub fn git_index(path: &Path) -> Result<Vec<OsString>, Error> {
+pub fn git_index(path: &Path, excludes: &[OsString]) -> Result<Vec<OsString>, Error> {
     let repo = Repository::discover(path)?;
     let index = repo.index()?;
     let mut index_files: Vec<OsString> = Vec::new();
     for index_entry in index.iter() {
+        let mut excluded = false;
         let path = OsStr::from_raw_bytes(index_entry.path).unwrap();
-        index_files.push(path.to_os_string());
+        let file_path = PathBuf::from(&path);
+        for exclude in excludes {
+            if let Some(file_name) = file_path.file_name() {
+                if exclude == file_name {
+                    log::info!("File {:?} is excluded, skipping.", file_path);
+                    excluded = true;
+                    break;
+                }
+            }
+            for ancestor in file_path.ancestors() {
+                if let Some(folder_name) = ancestor.file_name() {
+                    if exclude == folder_name {
+                        log::info!("Folder {:?} is excluded, skipping.", ancestor);
+                        excluded = true;
+                        break;
+                    }
+                }
+            }
+            if excluded {
+                break;
+            }
+        }
+        if !excluded {
+            index_files.push(path.to_os_string());
+        }
     }
-
     Ok(index_files)
 }
 
@@ -26,7 +50,6 @@ pub fn git_staged(path: &Path) -> Result<Vec<OsString>, Error> {
         let path = OsStr::from_raw_bytes(delta.new_file().path_bytes().unwrap()).unwrap();
         staged_files.push(path.to_os_string());
     }
-
     Ok(staged_files)
 }
 

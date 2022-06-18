@@ -56,7 +56,7 @@ fn main() {
         .arg(Arg::new("GITINDEX")
              .short('g')
              .long("gitindex")
-             .conflicts_with_all(&["GITSTAGED", "EXCLUDE"])
+             .conflicts_with("GITSTAGED")
              .help("Filter on files in git index only."))
         .arg(Arg::new("GITSTAGED")
              .short('d')
@@ -106,7 +106,7 @@ fn main() {
 
     // git index / staged
     let files = if matches.is_present("GITINDEX") {
-        let index_files = match git::git_index(&path) {
+        let index_files = match git::git_index(&path, &excludes) {
             Ok(f) => f,
             Err(why) => {
                 log::error!("{}", why);
