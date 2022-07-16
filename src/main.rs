@@ -2,6 +2,7 @@ extern crate lazy_static;
 
 use clap::{Arg, Command};
 use std::ffi::OsString;
+use std::fs::canonicalize;
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -73,10 +74,16 @@ fn main() {
     }
 
     // validate path
-    let path = PathBuf::from(matches.value_of("PATH").unwrap());
+    let path = match canonicalize(PathBuf::from(matches.value_of("PATH").unwrap())) {
+        Ok(p) => p,
+        Err(why) => {
+            println!("Can't canonicalize path, {}", why);
+            exit(1);
+        }
+    };
     if !path.exists() {
         log::error!("Invalid path {:?}", path);
-        exit(1);
+        exit(2);
     }
 
     // template
@@ -110,7 +117,7 @@ fn main() {
             Ok(f) => f,
             Err(why) => {
                 log::error!("{}", why);
-                exit(2);
+                exit(3);
             }
         };
         index_files
@@ -119,7 +126,7 @@ fn main() {
             Ok(f) => f,
             Err(why) => {
                 log::error!("{}", why);
-                exit(3);
+                exit(4);
             }
         };
         staged_files
@@ -138,7 +145,7 @@ fn main() {
             log::info!("Re-adding {:?}", files);
             if let Err(why) = git::git_add(&path, &files) {
                 log::error!("{}", why);
-                exit(4);
+                exit(5);
             }
         }
     }

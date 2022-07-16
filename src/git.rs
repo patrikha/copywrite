@@ -1,6 +1,7 @@
 use git2::{Error, IndexAddOption, Repository};
 use os_str_bytes::OsStrBytes;
 use std::ffi::{OsStr, OsString};
+use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
 
 pub fn git_index(path: &Path, excludes: &[OsString]) -> Result<Vec<OsString>, Error> {
@@ -9,8 +10,18 @@ pub fn git_index(path: &Path, excludes: &[OsString]) -> Result<Vec<OsString>, Er
     let mut index_files: Vec<OsString> = Vec::new();
     for index_entry in index.iter() {
         let mut excluded = false;
-        let path = OsStr::from_raw_bytes(index_entry.path).unwrap();
-        let file_path = PathBuf::from(&path);
+        let index_path = OsStr::from_raw_bytes(index_entry.path).unwrap();
+        let file_path = match canonicalize(PathBuf::from(&index_path)) {
+            Ok(p) => p,
+            Err(_) => {
+                log::error!("Can't canonicalize {:?}", path);
+                continue;
+            }
+        };
+        if !file_path.starts_with(&path) {
+            log::info!("Git index path {:?} is not subpath of {:?}", file_path, path);
+            continue;
+        }
         for exclude in excludes {
             if let Some(file_name) = file_path.file_name() {
                 if exclude == file_name {
@@ -33,7 +44,7 @@ pub fn git_index(path: &Path, excludes: &[OsString]) -> Result<Vec<OsString>, Er
             }
         }
         if !excluded {
-            index_files.push(path.to_os_string());
+            index_files.push(index_path.to_os_string());
         }
     }
     Ok(index_files)
