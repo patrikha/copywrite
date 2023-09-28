@@ -1,12 +1,8 @@
 [package]
 name = "copywrite"
-version = "0.1.6"
+version = "0.1.8"
 authors = ["patrik.hartlen@gmail.com"]
-edition = "2018"
-build = "build.rs"
-
-[build-dependencies]
-built = {version = "0.5",  features = ["git2", "chrono"]}
+edition = "2021"
 
 [profile.release]
 opt-level = 'z'  # Optimize for size.
@@ -17,9 +13,9 @@ lazy_static = "1"
 serde = { version = "1", features = ["derive"] }
 log = "0"
 env_logger = "0"
-clap = "3"
+clap = "4"
 encoding_rs = "0.8"
-unicode-bom = "1"
+unicode-bom = "2"
 walkdir = "2"
 regex = "1"
 tera = "1"

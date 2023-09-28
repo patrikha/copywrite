@@ -14,7 +14,7 @@ fn is_excluded(entry: &DirEntry, excludes: &[OsString]) -> bool {
 
 pub fn walk(path: &Path, excludes: &[OsString]) -> Vec<OsString> {
     let mut files: Vec<OsString> = Vec::new();
-    for entry in WalkDir::new(&path)
+    for entry in WalkDir::new(path)
         .follow_links(true)
         .into_iter()
         .filter_entry(|e| !is_excluded(e, excludes))

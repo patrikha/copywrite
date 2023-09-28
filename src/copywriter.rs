@@ -89,7 +89,7 @@ fn create_xml_style_language(extensions: Vec<OsString>) -> Language {
 }
 
 #[allow(clippy::vec_init_then_push)]
-fn get_type_settings(languages: &Option<&[&str]>) -> HashMap<String, Language> {
+fn get_type_settings(languages: &Option<Vec<&str>>) -> HashMap<String, Language> {
     let type_settings: HashMap<String, Language> = {
         let mut t = HashMap::new();
         t.insert("c".to_string(), create_c_style_language(osvec!["c", "cc", "h"]));
@@ -499,7 +499,7 @@ fn copywrite_file(path: &Path, lang_type: &str, settings: &Language, template: &
         log::info!("Header is up-to-date in file {:?}", path);
         return;
     }
-    match File::create(&path) {
+    match File::create(path) {
         Ok(mut file) => {
             // if bom was found make sure to write it back
             if let Some(bom_bytes) = license.content.bom_bytes {
@@ -546,7 +546,7 @@ fn copywrite_file(path: &Path, lang_type: &str, settings: &Language, template: &
     };
 }
 
-pub fn copywrite_path(files: &[OsString], template: &[String], languages: &Option<&[&str]>) {
+pub fn copywrite_path(files: &[OsString], template: &[String], languages: &Option<Vec<&str>>) {
     let type_settings = get_type_settings(languages);
 
     for file in files {

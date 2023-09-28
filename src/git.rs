@@ -4,7 +4,7 @@ use std::ffi::{OsStr, OsString};
 use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
 
-pub fn git_index(path: &Path, excludes: &[OsString]) -> Result<Vec<OsString>, Error> {
+pub fn git_index(path: &Path, excludes: &Vec<OsString>) -> Result<Vec<OsString>, Error> {
     let repo = Repository::discover(path)?;
     let index = repo.index()?;
     let mut index_files: Vec<OsString> = Vec::new();
@@ -18,7 +18,7 @@ pub fn git_index(path: &Path, excludes: &[OsString]) -> Result<Vec<OsString>, Er
                 continue;
             }
         };
-        if !file_path.starts_with(&path) {
+        if !file_path.starts_with(path) {
             log::info!("Git index path {:?} is not subpath of {:?}", file_path, path);
             continue;
         }

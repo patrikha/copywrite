@@ -11,7 +11,7 @@ pub fn read_template(path: &Path) -> Vec<String> {
         exit(21);
     }
     log::info!("Using template {:?}", path);
-    let template: String = match read_to_string(&path) {
+    let template: String = match read_to_string(path) {
         Ok(t) => t,
         Err(why) => {
             log::error!("{:?}", why);

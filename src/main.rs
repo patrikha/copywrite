@@ -1,6 +1,4 @@
-extern crate lazy_static;
-
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 use std::ffi::OsString;
 use std::fs::canonicalize;
 use std::path::PathBuf;
@@ -11,70 +9,62 @@ use copywrite::filesystem;
 use copywrite::git;
 use copywrite::template::read_template;
 
-pub mod built_info {
-    include!(concat!(env!("OUT_DIR"), "/built.rs"));
-}
+const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), ".", env!("BUILD"));
 
 fn main() {
     env_logger::builder().format_timestamp(None).init();
-    let version = format!(
-        "{}-{}\nBuilt on {}",
-        built_info::PKG_VERSION,
-        built_info::GIT_VERSION.unwrap(),
-        built_info::BUILT_TIME_UTC
-    );
 
     let matches = Command::new("copywrite")
         .about("Add or update copyright banner in source files.")
-        .version(version.as_str())
+        .version(VERSION)
+        .arg(Arg::new("BUILD")
+                .short('v')
+                .action(ArgAction::SetTrue)
+                .conflicts_with_all(["PATH", "TEMPLATE"])
+                .help("Prints shorthand version information."))
         .arg(Arg::new("PATH")
              .required(true)
              .index(1)
-             .conflicts_with("v")
-             .help("Path to update with copyright template."))
-        .arg(Arg::new("v")
-             .short('v')
-             .conflicts_with_all(&["PATH", "TEMPLATE"])
-             .help("Prints shorthand version information."))
+             .conflicts_with("BUILD"))
         .arg(Arg::new("TEMPLATE")
              .short('t')
              .long("template")
              .required(true)
-             .takes_value(true)
+             .num_args(1)
              .help("Path to tera (Jinja2) template file containing the copyright banner. All environment variables plus {{year}} for current year are available in the template."))
         .arg(Arg::new("LANGUAGE")
              .short('l')
              .long("language")
-             .takes_value(true)
-             .multiple_occurrences(true)
+             .action(ArgAction::Append)
              .help("Restrict to only update files for specified language(s), can be repeated."))
         .arg(Arg::new("EXCLUDE")
              .short('e')
              .long("exclude")
-             .takes_value(true)
-             .multiple_occurrences(true)
+             .action(ArgAction::Append)
              .help("Exclude path, file or directory name, can be repeated."))
         .arg(Arg::new("GITINDEX")
              .short('g')
              .long("gitindex")
+             .action(ArgAction::SetTrue)
              .conflicts_with("GITSTAGED")
              .help("Filter on files in git index only."))
         .arg(Arg::new("GITSTAGED")
              .short('d')
              .long("gitstaged")
-             .conflicts_with_all(&["GITINDEX", "EXCLUDE"])
+             .action(ArgAction::SetTrue)
+             .conflicts_with_all(["GITINDEX", "EXCLUDE"])
              .help("Filter on files added to git staging index only."))
         .after_help("Supported languages: c, cpp, csharp, rust, go, swift, objective-c, kotlin, java, javascript, groovy, php, typescript, python, xml, svg, resx, proto, html, css, script")
         .get_matches();
 
     // version
-    if matches.is_present("v") {
-        println!("{}-{}", built_info::PKG_VERSION, built_info::GIT_VERSION.unwrap());
+    if matches.get_flag("BUILD") {
+        println!("{}", VERSION);
         exit(0);
     }
 
     // validate path
-    let path = match canonicalize(PathBuf::from(matches.value_of("PATH").unwrap())) {
+    let path = match canonicalize(PathBuf::from(matches.get_one::<String>("PATH").unwrap())) {
         Ok(p) => p,
         Err(why) => {
             println!("Can't canonicalize path, {}", why);
@@ -87,49 +77,37 @@ fn main() {
     }
 
     // template
-    let template_path = PathBuf::from(matches.value_of("TEMPLATE").unwrap());
+    let template_path = PathBuf::from(matches.get_one::<String>("TEMPLATE").unwrap());
     let template: Vec<String> = read_template(&template_path);
 
     // exclude
-    let mut excludes: Vec<OsString> = Vec::new();
-    if matches.is_present("EXCLUDE") {
-        let exclude_args: Vec<_> = matches.values_of("EXCLUDE").unwrap().collect();
-        for exclude_arg in exclude_args {
-            let exclude = OsString::from(exclude_arg);
-            excludes.push(exclude);
-        }
-    }
-
-    // languages
-    let mut language_args: Vec<&str> = Vec::new();
-    let languages = if matches.is_present("LANGUAGE") {
-        for language_arg in matches.values_of("LANGUAGE").unwrap().collect::<Vec<_>>() {
-            language_args.push(language_arg);
-        }
-        Some(&language_args as &[&str])
-    } else {
-        None
+    let excludes: Vec<OsString> = match matches.get_many::<String>("EXCLUDE") {
+        Some(l) => l.map(OsString::from).collect(),
+        None => vec![],
     };
 
+    // languages
+    let languages: Option<Vec<&str>> = matches
+        .get_many::<String>("LANGUAGE")
+        .map(|l| l.map(|s| s.as_str()).collect());
+
     // git index / staged
-    let files = if matches.is_present("GITINDEX") {
-        let index_files = match git::git_index(&path, &excludes) {
+    let files = if matches.get_flag("GITINDEX") {
+        match git::git_index(&path, &excludes) {
             Ok(f) => f,
             Err(why) => {
                 log::error!("{}", why);
                 exit(3);
             }
-        };
-        index_files
-    } else if matches.is_present("GITSTAGED") {
-        let staged_files = match git::git_staged(&path) {
+        }
+    } else if matches.get_flag("GITSTAGED") {
+        match git::git_staged(&path) {
             Ok(f) => f,
             Err(why) => {
                 log::error!("{}", why);
                 exit(4);
             }
-        };
-        staged_files
+        }
     } else {
         filesystem::walk(&path, &excludes)
     };
@@ -138,7 +116,7 @@ fn main() {
     copywriter::copywrite_path(&files, &template, &languages);
 
     // if using gitstaged re-add updated files
-    if matches.is_present("GITSTAGED") {
+    if matches.get_flag("GITSTAGED") {
         if files.is_empty() {
             log::info!("No staged files found, skipping git add.");
         } else {
