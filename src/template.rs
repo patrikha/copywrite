@@ -31,7 +31,7 @@ pub fn read_template(path: &Path) -> Vec<String> {
         context.insert(key, &value);
     }
     let result: String;
-    match Tera::one_off(template.as_str(), &context, true) {
+    match Tera::one_off(template.as_str(), &context, false) {
         Ok(r) => result = r,
         Err(why) => {
             log::error!("Could not create one off, {:?}", why);
